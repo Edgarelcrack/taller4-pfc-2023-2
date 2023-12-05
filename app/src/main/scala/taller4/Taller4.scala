@@ -1,13 +1,15 @@
 /**
-  * Taller 3 - Programación Funcional
-  * Autores: <Edgar Andres Vargas Garcia - Juan Pablo Escovar Viveros >
-  * Profesor: Carlos A Delgado
-  */
+ * Taller 3 - Programación Funcional
+ * Autores: <Edgar Andres Vargas Garcia-2259690 - Juan Pablo Escovar Viveros-2259519 >
+ * Profesor: Carlos A Delgado
+ */
 
 package taller4
 import common._
-
+import org.scalameter.{Warmer, withWarmer}
+import scala.collection.parallel.immutable.ParVector
 import scala.util.Random
+
 object Taller4{
 
  type Matriz = Vector[Vector[Int]]
@@ -26,15 +28,30 @@ object Taller4{
   v
  }
 
+ def vectorAlAzarPar(long: Int, vals: Int): ParVector[Int] = {
+  val random = new Random()
+  val v = ParVector.fill(long) {
+   random.nextInt(vals)
+  }
+  v
+ }
+
+
  def prodPunto(v1: Vector[Int], v2: Vector[Int]): Int = {
   (v1 zip v2).map({
    case(i, j)
    => (i * j)
   }).sum
  }
+
+ def prodPuntoParD(v1: ParVector[Int], v2: ParVector[Int]): Int = {
+  (v1 zip v2).map({ case (i, j) => i * j }).sum
+ }
+
+
  def transpuesta(m: Matriz): Matriz = {
   val l = m.length
-    Vector.tabulate (l, l)((i, j) => m(j)(i))
+  Vector.tabulate (l, l)((i, j) => m(j)(i))
  }
 
  def multMatriz(m1: Matriz, m2: Matriz): Matriz = {
@@ -67,16 +84,16 @@ object Taller4{
  }
 
  def sumMatriz(m1: Matriz, m2: Matriz): Matriz = {
-   def sumaElementos(v1: Vector[Int], v2: Vector[Int]): Vector[Int] =
-    Vector.tabulate(v1.length)(i => v1(i) + v2(i))
+  def sumaElementos(v1: Vector[Int], v2: Vector[Int]): Vector[Int] =
+   Vector.tabulate(v1.length)(i => v1(i) + v2(i))
 
-   def sumaMatrices(m1: Matriz, m2: Matriz): Matriz = {
-    def sumaElementosMatrices(x1: Matriz, x2: Matriz): Matriz =
-     Vector.tabulate(x1.length)(i => sumaElementos(x1(i), x2(i)))
+  def sumaMatrices(m1: Matriz, m2: Matriz): Matriz = {
+   def sumaElementosMatrices(x1: Matriz, x2: Matriz): Matriz =
+    Vector.tabulate(x1.length)(i => sumaElementos(x1(i), x2(i)))
 
-    sumaElementosMatrices(m1, m2)
-   }
-   sumaMatrices(m1, m2)
+   sumaElementosMatrices(m1, m2)
+  }
+  sumaMatrices(m1, m2)
  }
 
  def multMatrizRec(m1: Matriz, m2: Matriz): Matriz = {
@@ -117,18 +134,18 @@ object Taller4{
    Vector(Vector(m1(0)(0) * m2(0)(0)))
   } else {
    val (a11, a12, a21, a22) = parallel(
-   subMatriz(m1, 0, 0, n / 2),
-   subMatriz(m1, 0, n / 2, n / 2),
-   subMatriz(m1, n / 2, 0, n / 2),
-   subMatriz(m1, n / 2, n / 2, n / 2))
+    subMatriz(m1, 0, 0, n / 2),
+    subMatriz(m1, 0, n / 2, n / 2),
+    subMatriz(m1, n / 2, 0, n / 2),
+    subMatriz(m1, n / 2, n / 2, n / 2))
 
    val (b11, b12, b21, b22) = parallel (subMatriz(m2, 0, 0, n / 2), subMatriz(m2, 0, n / 2, n / 2), subMatriz(m2, n / 2, 0, n / 2), subMatriz(m2, n / 2, n / 2, n / 2))
 
    val (c11, c12, c21, c22) = parallel(
-   sumMatriz(multMatrizRec(a11, b11), multMatrizRec(a12, b21)),
-   sumMatriz(multMatrizRec(a11, b12), multMatrizRec(a12, b22)),
-   sumMatriz(multMatrizRec(a21, b11), multMatrizRec(a22, b21)),
-   sumMatriz(multMatrizRec(a21, b12), multMatrizRec(a22, b22))
+    sumMatriz(multMatrizRec(a11, b11), multMatrizRec(a12, b21)),
+    sumMatriz(multMatrizRec(a11, b12), multMatrizRec(a12, b22)),
+    sumMatriz(multMatrizRec(a21, b11), multMatrizRec(a22, b21)),
+    sumMatriz(multMatrizRec(a21, b12), multMatrizRec(a22, b22))
 
    )
 
@@ -273,31 +290,65 @@ object Taller4{
    }
   }
  }
-
  def main(args: Array[String]): Unit = {
 
-  type Matriz = Vector[Vector[Int]]
+  val matriz1 = matrizAlAzar(2, 2)
+  val matriz2 = matrizAlAzar(2, 2)
 
-  // Genera una matriz de tamaño n x m con valores aleatorios de 0 y 1
-  def generarMatriz(n: Int, m: Int): Matriz = {
-   Vector.tabulate(n) { _ =>
-    Vector.tabulate(m) { _ =>
-     Random.nextInt(2)
-    }
+
+  println(
+   withWarmer(new Warmer.Default) measure {
+    multMatriz(matriz1, matriz2)
    }
-  }
+  )
 
-  val matriz1 = generarMatriz(256, 256)
-  val matriz2 = generarMatriz(256, 256)
+  println(
+   withWarmer(new Warmer.Default) measure {
+    multMatrizParalelo(matriz1, matriz2)
+   }
+  )
 
-  val resultadoNormal = multMatriz(matriz1, matriz2)
-  val resultadoParalelo = multMatrizParalelo(matriz1, matriz2)
-  val resultadoRecursivo = multMatrizRec(matriz1, matriz2)
-  val resultadoRecursivoParalelo = multMatrizRecParalelo(matriz1, matriz2)
-  val resultadoStrassen = multMatrizStrassen(matriz1, matriz2)
-  val resultadoStrassenParalelo = multMatrizStrassenParalelo(matriz1, matriz2)
+  println(
+   withWarmer(new Warmer.Default) measure {
+    multMatrizRec(matriz1, matriz2)
+   }
+  )
 
-  print(resultadoNormal)
+  println(
+   withWarmer(new Warmer.Default) measure {
+    multMatrizRecParalelo(matriz1, matriz2)
+   }
+  )
 
+  println(
+   withWarmer(new Warmer.Default) measure {
+    multMatrizStrassen(matriz1, matriz2)
+   }
+  )
+
+  println(
+   withWarmer(new Warmer.Default) measure {
+    multMatrizStrassenParalelo(matriz1, matriz2)
+   }
+  )
+
+   def compararProdPunto(l: Int): (Double, Double, Double) = {
+    val v1 = vectorAlAzar(l, 2)
+    val v2 = vectorAlAzar(l, 2)
+    val v1Par = vectorAlAzarPar(l, 2)
+    val v2Par = vectorAlAzarPar(l, 2)
+
+    val tiempoAlgoritmo1 = withWarmer(new Warmer.Default) measure {
+     prodPunto(v1, v2)
+    }
+    val tiempoAlgoritmo2 = withWarmer(new Warmer.Default) measure {
+     prodPuntoParD(v1Par, v2Par)
+    }
+
+    val promedio = tiempoAlgoritmo1.value / tiempoAlgoritmo2.value
+    (tiempoAlgoritmo1.value, tiempoAlgoritmo2.value, promedio)
+
+   }
+  println(compararProdPunto(1000))
  }
 }
